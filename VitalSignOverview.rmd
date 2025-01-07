@@ -1,0 +1,108 @@
+---
+title: ""
+author: ""
+date: ""
+output: html_document
+---
+
+```{r setup, include=FALSE,echo=FALSE}
+VSID=18
+
+knitr::opts_chunk$set(echo = TRUE)
+
+library(odbc)
+library(tidyverse)
+
+Connection = dbConnect(odbc(),Driver = "Sql Server",Server = "inp2300irmadb01\\ntwk", Database = "AKRO")
+
+
+# Function to fix an SQL query by replacing every comma with a newline
+FixSql = function(Sql) {
+  FixedSql = gsub(",", "\n,", Sql)
+  FixedSql = gsub(", ", ",", FixedSql)
+  return(FixedSql)
+}
+
+
+
+```
+
+```{r, echo=FALSE}
+Sql = paste("SELECT 
+Acronym
+,NetworkVSName AS VitalSign
+,ProjectLeadLastname + ', ' + ProjectLeadFirstname as ProjectLeader
+,ProjectLeadEmail as Email
+,'<a href=\"mailto:' + ProjectLeadEmail + '\">' + ProjectLeadEmail + '</a>' as EEmail
+,ProjectLeadTelephone as Telephone
+--,Convert(varchar(1000),Overview) As Overview
+,Status
+,Convert(Date,ImplementationDate) as ImplementationDate
+,FilesDirectory
+,Website
+,Convert(varchar(1000),Address) as Address
+,'[https://irma.nps.gov/DataStore/Reference/Profile/' + Convert(varchar(20),IRMAProjectReference) + '](https://irma.nps.gov/DataStore/Reference/Profile/' + Convert(varchar(20),IRMAProjectReference) + ')' as NPSDataStore
+,ProjectLeadContactID
+,NetworkID
+,VSID
+FROM vwVitalSignOverview
+WHERE (VSID = ",VSID,")",sep="")
+#Sql = FixSql(Sql)
+#cat(Sql)
+vs = dbGetQuery(Connection,Sql)
+
+```
+
+# `r vs$VitalSign`
+
+`r Sys.Date()`
+
+```{r,echo=FALSE}
+knitr::kable(t(vs %>% select(VitalSign
+ ,ProjectLeader
+ ,EEmail
+,Telephone
+,Status
+,ImplementationDate
+,FilesDirectory
+,Website
+,Address
+,NPSDataStore)),escape = TRUE,na.rm=TRUE)
+```
+
+```{r,echo=FALSE}
+# Install and load the httr package
+#install.packages("httr")
+# library(httr)
+# 
+# # Define the URL for the GET request
+# url = "https://irmaservices.nps.gov/datastore-secure/v7/rest/Profile/2285179"
+# url = "https://irmaservices.nps.gov/datastore/v7/rest/QuickSearch?q=moose&format=json"
+# 
+# # Moose Project (ARCN)
+# url = "https://irmaservices.nps.gov/datastore/v7/rest/ReferenceCodeSearch?q=2222140&format=json"
+# 
+# # Make the GET request
+# response <- GET(url)
+# 
+# # Check the status code of the response
+# status_code <- status_code(response)
+# 
+# if (status_code == 200) {
+#   # Parse the JSON content from the response
+#   content <- content(response, "parsed", type = "application/json")
+#   
+#   # Print the parsed content
+#   #print(content)
+#   
+#   # for (i in 1:length(content$items)){
+#   #   print(i)
+#   # }
+#   
+#   Title = content[[1]][["title"]]
+#   print(Title)
+# } else {
+#   # Handle errors
+#   print(paste("Request failed with status code", status_code))
+# }
+```
