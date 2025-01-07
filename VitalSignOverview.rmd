@@ -52,8 +52,9 @@ FROM vwVitalSignOverview
 WHERE (VSID = ",VSID,")",sep="")
 #Sql = FixSql(Sql)
 #cat(Sql)
-vs = dbGetQuery(Connection,Sql)
 
+vs = dbGetQuery(Connection,Sql)
+vs$Directory = gsub("\\\\", "\\\\\\\\", vs$Directory)
 ```
 
 # National Park Service, Arctic Inventory and Monitoring Network Vital Sign Profile: `r vs$VitalSign`
@@ -77,9 +78,6 @@ knitr::kable(t(vs %>% select(VitalSign
 
 # Protocols 
 
-
-
-
 ```{r,label="VS Protocols",echo=FALSE}
 
 Sql = paste("SELECT [ProtocolTitle]
@@ -99,6 +97,7 @@ Sql = paste("SELECT [ProtocolTitle]
   FROM [AKRO].[dbo].[tblVitalSignProtocols]
 WHERE (VSID = ",VSID,") ORDER BY Version DESC",sep="")
 protocols = dbGetQuery(Connection,Sql)
+protocols$ProtocolCitation = iconv(protocols$ProtocolCitation, from = "UTF-8", to = "ASCII//TRANSLIT", sub = "")
 
 ```
 
@@ -108,7 +107,10 @@ for(i in 1:nrow(protocols)){
   Citation = protocols[i,'ProtocolCitation']
   ProtocolID = protocols[i,"ProtocolID"]
   cat("## ",Citation,"  \n")
+  
+  
   cat("### Deliverables Schedule  \n")
+  cat("Below are the deliverables expected after each remeasurement of this Vital Sign according to the following protocol:\n\n",Citation,"  \n")
   Sql = paste("SELECT  [DeliverableIdentifier]
 ,[Deliverable]
 --,[SOP]
@@ -130,9 +132,30 @@ for(i in 1:nrow(protocols)){
 --,[RecordInsertedDate]
 --,[RecordInsertedBy]
   FROM [AKRO].[dbo].[tblProtocolDeliverables]
- WHERE ProtocolID=",ProtocolID,sep="")
+ WHERE ProtocolID=",ProtocolID," ORDER BY DeliverableIdentifier",sep="")
     ds = dbGetQuery(Connection,Sql)
     print(knitr::kable(ds))
+    
+  cat("### Remeasurements  \n")
+  cat("Below are the remeasurements conducted according to the following protocol:\n\n",Citation,"  \n")
+  Sql = paste("SELECT [Description]
+      --,[BeginDate]
+      --,[EndDate]
+      ,'https://irma.nps.gov/DataStore/Reference/Profile/'+ Convert(Varchar(20),[DeliverablesIRMAReferenceCode]) as Deliverables
+      ,'https://irma.nps.gov/DataStore/Reference/Profile/'+ Convert(Varchar(20),[ReportIRMAReferenceCode]) as Report
+      ,[Notes]
+      --,[RemeasurementAbstract]
+      --,[ProtocolID]
+      --,[RecordInsertedDate]
+      --,[RecordInsertedBy]
+      --,[RemeasurementID]
+  FROM [AKRO].[dbo].[tblProtocolRemeasurements]
+ WHERE ProtocolID=",ProtocolID,"
+ ORDER BY Description DESC",sep="")
+    rm = dbGetQuery(Connection,Sql)
+    print(knitr::kable(rm,na.rm=TRUE))
+    
+    
 }
 
 ```
