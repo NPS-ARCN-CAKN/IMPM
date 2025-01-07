@@ -7,38 +7,44 @@ output:
     toc: true 
     toc_depth: 3
     toc_float: true
+params:
+  VSID: 0
 ---
 
 ```{r setup, include=FALSE,echo=FALSE}
-VSID=18
+# Move the VSID from the report parameters in the YAML above to a variable
+VSID = params$VSID
+#VSID=18
 
+# Setup knitr
 knitr::opts_chunk$set(echo = TRUE)
 
+
+# Load libraries
 library(odbc)
 library(tidyverse)
 
+# Database connection
 Connection = dbConnect(odbc(),Driver = "Sql Server",Server = "inp2300irmadb01\\ntwk", Database = "AKRO")
 
-
-# Function to fix an SQL query by replacing every comma with a newline
+# Function to fix an SQL query by replacing every comma with a newline - makes sql more readable
 FixSql = function(Sql) {
   FixedSql = gsub(",", "\n,", Sql)
   FixedSql = gsub(", ", ",", FixedSql)
   return(FixedSql)
 }
-
-
-
 ```
 
-```{r, echo=FALSE}
+```{r,label="Get the Vital Sign overview info", echo=FALSE}
+
+# Build a query
 Sql = paste("SELECT 
 Acronym
 ,NetworkVSName AS VitalSign
 ,ProjectLeadLastname + ', ' + ProjectLeadFirstname as ProjectLeader
 ,'<a href=\"mailto:' + ProjectLeadEmail + '\">' + ProjectLeadEmail + '</a>' as Email
 ,ProjectLeadTelephone as Telephone
---,Convert(varchar(1000),Overview) As Overview
+,Convert(varchar(8000),Overview) As Overview
 ,Status
 ,Convert(Date,ImplementationDate) as ImplementationDate
 ,Replace(FilesDirectory,'\','\\') as Directory
@@ -46,24 +52,49 @@ Acronym
 ,Convert(varchar(1000),Address) as Address
 ,'[https://irma.nps.gov/DataStore/Reference/Profile/' + Convert(varchar(20),IRMAProjectReference) + '](https://irma.nps.gov/DataStore/Reference/Profile/' + Convert(varchar(20),IRMAProjectReference) + ')' as NPSDataStore
 ,ProjectLeadContactID
-,NetworkID
+,NetworkID,Network
 ,VSID
 FROM vwVitalSignOverview
 WHERE (VSID = ",VSID,")",sep="")
-#Sql = FixSql(Sql)
-#cat(Sql)
 
+# Vital Sign overview data frame
 vs = dbGetQuery(Connection,Sql)
+
+# Fix the directory path so it will show OK in markdown
 vs$Directory = gsub("\\\\", "\\\\\\\\", vs$Directory)
+
+# Get the overview into a variable so it can be displayed in markdown
+# Clean it so it displays in markdown better
+#Overview = gsub("\r\n", "\n", vs$Overview) # iconv(vs$Overview, from = "UTF-8", to = "ASCII//TRANSLIT", sub = "") 
+Overview = iconv(vs$Overview, from = "UTF-8", to = "ASCII//TRANSLIT", sub = "") 
+
 ```
 
-# National Park Service, Arctic Inventory and Monitoring Network Vital Sign Profile: `r vs$VitalSign`
 
-`r Sys.Date()`
 
-# Vital Sign Details
+# `r vs$VitalSign`
+### Vital Sign Overview Report
+*National Park Service, `r vs$Network` Inventory and Monitoring Program*
 
-```{r,label="VS Details",echo=FALSE}
+Scott D. Miller  
+Information Technology Specialist
+National Park Service, Arctic Inventory and Monitoring Network  
+240 W. 5th Ave  
+Anchorage, AK 99501  
+
+`r format(Sys.Date(), "%B %d, %Y")`
+
+# Overview
+
+`r Overview`
+
+# Details
+
+Details regarding the `r vs$VitalSign` monitoring program appear in Table 1.
+
+```{r,label="Show the VS Details",echo=FALSE,tab.cap=paste("Table 1. ",vs$VitalSign," monitoring program details.",sep="")}
+
+# Extract the vital sign details, transpose it tall and skinny
 knitr::kable(t(vs %>% select(VitalSign
  ,ProjectLeader
  ,Email
@@ -74,11 +105,14 @@ knitr::kable(t(vs %>% select(VitalSign
 ,Website
 ,Address
 ,NPSDataStore)),escape = TRUE,na.rm=TRUE)
+
 ```
 
 # Protocols 
 
-```{r,label="VS Protocols",echo=FALSE}
+Table 2. shows the monitoring protocol(s) that have been implemented for the `r vs$VitalSign` monitoring program. Also shown are the schedule of deliverables to be fulfilled during each remeasurement cycle, and a list of completed remeasurements..
+
+```{r,label="VS Protocols",echo=FALSE,tab.cap=paste("Table 2. ",vs$VitalSign," monitoring protocol(s).",sep="")}
 
 Sql = paste("SELECT [ProtocolTitle]
 ,[ProtocolCitation]
@@ -106,11 +140,13 @@ for(i in 1:nrow(protocols)){
   Title = protocols[i,'ProtocolTitle']
   Citation = protocols[i,'ProtocolCitation']
   ProtocolID = protocols[i,"ProtocolID"]
+  RefCode = protocols[i,"IRMAReferenceCode"]
+  ProtocolReference = paste("[",Citation,"](https://irma.nps.gov/DataStore/Reference/Profile/",RefCode,") \n",sep="")
   cat("## ",Citation,"  \n")
   
   
   cat("### Deliverables Schedule  \n")
-  cat("Below are the deliverables expected after each remeasurement of this Vital Sign according to the following protocol:\n\n",Citation,"  \n")
+  
   Sql = paste("SELECT  [DeliverableIdentifier]
 ,[Deliverable]
 --,[SOP]
@@ -134,10 +170,11 @@ for(i in 1:nrow(protocols)){
   FROM [AKRO].[dbo].[tblProtocolDeliverables]
  WHERE ProtocolID=",ProtocolID," ORDER BY DeliverableIdentifier",sep="")
     ds = dbGetQuery(Connection,Sql)
+    cat("This protocol describes the collection, delivery and management of ",nrow(ds)," deliverables.\n\n",ProtocolReference,"  \n")
     print(knitr::kable(ds))
     
   cat("### Remeasurements  \n")
-  cat("Below are the remeasurements conducted according to the following protocol:\n\n",Citation,"  \n")
+  
   Sql = paste("SELECT [Description]
       --,[BeginDate]
       --,[EndDate]
@@ -153,6 +190,7 @@ for(i in 1:nrow(protocols)){
  WHERE ProtocolID=",ProtocolID,"
  ORDER BY Description DESC",sep="")
     rm = dbGetQuery(Connection,Sql)
+    cat("This protocol has been used during ",nrow(rm)," remeasurements:\n\n",Citation,"  \n")
     print(knitr::kable(rm,na.rm=TRUE))
     
     
@@ -161,6 +199,40 @@ for(i in 1:nrow(protocols)){
 ```
 
 
+```{r,label="Write the report to the survey directory", echo=FALSE}
+
+# This template will output to an html file named MooseSurveyReport.htms
+# Rename it and copy it to the survey directory if it exists
+# Otherwise rename it in the current directory
+From = "VitalSignOverview.html"
+
+# Set up the source file title
+ReportTitle = paste(vs$Acronym," ",vs$VitalSign," Summary.html",sep="")
+
+# Check if the survey directory exists
+# Set up a destination file path for the file copy operation
+# if (dir.exists(DashboardDF$DataResourcesDirectory)) {
+#   To=paste(DashboardDF$DataResourcesDirectory,"/",ReportTitle,sep="")
+# } else {
+#   To=ReportTitle
+# }
+To=ReportTitle
+
+print(paste("Printing ",From," to ",To,sep=""))
+
+# Try to copy the file to the destination
+tryCatch({
+  file.copy(From, To, overwrite = TRUE)
+  message(paste("Report ",From," generated and and copied to ",To,sep=""))
+}, error = function(e) {
+  
+  # An error happened
+  message("Error: ", e$message)
+  
+})
+
+
+```
 
 
 
