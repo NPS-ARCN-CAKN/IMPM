@@ -2,7 +2,11 @@
 title: ""
 author: ""
 date: ""
-output: html_document
+output: 
+  html_document: 
+    toc: true 
+    toc_depth: 3
+    toc_float: true
 ---
 
 ```{r setup, include=FALSE,echo=FALSE}
@@ -32,13 +36,12 @@ Sql = paste("SELECT
 Acronym
 ,NetworkVSName AS VitalSign
 ,ProjectLeadLastname + ', ' + ProjectLeadFirstname as ProjectLeader
-,ProjectLeadEmail as Email
-,'<a href=\"mailto:' + ProjectLeadEmail + '\">' + ProjectLeadEmail + '</a>' as EEmail
+,'<a href=\"mailto:' + ProjectLeadEmail + '\">' + ProjectLeadEmail + '</a>' as Email
 ,ProjectLeadTelephone as Telephone
 --,Convert(varchar(1000),Overview) As Overview
 ,Status
 ,Convert(Date,ImplementationDate) as ImplementationDate
-,FilesDirectory
+,Replace(FilesDirectory,'\','\\') as Directory
 ,Website
 ,Convert(varchar(1000),Address) as Address
 ,'[https://irma.nps.gov/DataStore/Reference/Profile/' + Convert(varchar(20),IRMAProjectReference) + '](https://irma.nps.gov/DataStore/Reference/Profile/' + Convert(varchar(20),IRMAProjectReference) + ')' as NPSDataStore
@@ -53,22 +56,97 @@ vs = dbGetQuery(Connection,Sql)
 
 ```
 
-# `r vs$VitalSign`
+# National Park Service, Arctic Inventory and Monitoring Network Vital Sign Profile: `r vs$VitalSign`
 
 `r Sys.Date()`
 
-```{r,echo=FALSE}
+# Vital Sign Details
+
+```{r,label="VS Details",echo=FALSE}
 knitr::kable(t(vs %>% select(VitalSign
  ,ProjectLeader
- ,EEmail
+ ,Email
 ,Telephone
 ,Status
 ,ImplementationDate
-,FilesDirectory
+,Directory
 ,Website
 ,Address
 ,NPSDataStore)),escape = TRUE,na.rm=TRUE)
 ```
+
+# Protocols 
+
+
+
+
+```{r,label="VS Protocols",echo=FALSE}
+
+Sql = paste("SELECT [ProtocolTitle]
+,[ProtocolCitation]
+,[Version]
+,[IRMAReferenceCode]
+,[DateNarrativePublished]
+,[DQSReferenceCode]
+,[PIPSourceReferenceCode]
+,[QAPReferenceCode]
+--,[Notes]
+--,[DocumentID]
+--,[RecordInsertedDate]
+--,[RecordInsertedBy]
+--,[VSID]
+,[ProtocolID]
+  FROM [AKRO].[dbo].[tblVitalSignProtocols]
+WHERE (VSID = ",VSID,") ORDER BY Version DESC",sep="")
+protocols = dbGetQuery(Connection,Sql)
+
+```
+
+```{r,label="output protocols",results='asis',echo=FALSE}
+for(i in 1:nrow(protocols)){
+  Title = protocols[i,'ProtocolTitle']
+  Citation = protocols[i,'ProtocolCitation']
+  ProtocolID = protocols[i,"ProtocolID"]
+  cat("## ",Citation,"  \n")
+  cat("### Deliverables Schedule  \n")
+  Sql = paste("SELECT  [DeliverableIdentifier]
+,[Deliverable]
+--,[SOP]
+--,[SOPVersion]
+--,[Format]
+	  ,[Description]
+,[Schedule]
+,[Responsibility]
+--,[Specifications]
+--,[FileNamingScheme]
+--,[DataHandling]
+--,[QAQC]
+--,[Archival]
+--,[BuilderTasks]
+--,[ValidatorTasks]
+--,[CertifierTasks]
+--,[DeliverableID]
+--,[ProtocolID]
+--,[RecordInsertedDate]
+--,[RecordInsertedBy]
+  FROM [AKRO].[dbo].[tblProtocolDeliverables]
+ WHERE ProtocolID=",ProtocolID,sep="")
+    ds = dbGetQuery(Connection,Sql)
+    print(knitr::kable(ds))
+}
+
+```
+
+
+
+
+
+
+
+
+
+
+
 
 ```{r,echo=FALSE}
 # Install and load the httr package
