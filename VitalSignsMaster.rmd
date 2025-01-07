@@ -1,0 +1,69 @@
+---
+title: ""
+author: ""
+date: ""
+output: 
+  html_document: 
+    toc: true 
+    toc_depth: 3
+    toc_float: true
+params:
+  VSID: 19
+  input: numeric 
+knit: (function(input_file, encoding) { 
+  rmarkdown::render(input_file, 
+    encoding = encoding, 
+    params = list(VSID=7)) })
+---
+
+```{r setup, include=FALSE,echo=FALSE}
+
+VSID=params$VSID
+
+knitr::opts_chunk$set(echo = TRUE)
+
+library(odbc)
+library(tidyverse)
+library(rmarkdown)
+
+Connection = dbConnect(odbc(),Driver = "Sql Server",Server = "inp2300irmadb01\\ntwk", Database = "AKRO")
+
+
+# Function to fix an SQL query by replacing every comma with a newline
+FixSql = function(Sql) {
+  FixedSql = gsub(",", "\n,", Sql)
+  FixedSql = gsub(", ", ",", FixedSql)
+  return(FixedSql)
+}
+
+```
+
+# Vital Signs Summary Report Generator
+
+This template is used to cycle through the active ARCN/CAKN Vital Signs and generate summary reports for each.
+
+```{r, echo=FALSE}
+
+# Get the vital signs
+Sql = paste("SELECT Acronym,NetworkVSName,VSID FROM vwVitalSignOverview
+  WHERE Status<>'Deferred' ORDER BY Acronym,NetworkVSName",sep="")
+# Vital Sign overview data frame
+VSInventory = dbGetQuery(Connection,Sql)
+knitr::kable(VSInventory)
+
+```
+
+```{r, echo=FALSE}
+
+# Loop through the Vital Signs and generate a summary report for each
+for(i in 1:nrow(VSInventory)){
+  Acronym = VSInventory[i,"Acronym"]
+  VitalSign = VSInventory[i,"NetworkVSName"]
+  VitalSignID = VSInventory[i,"VSID"]
+  # Render the report with specific parameters
+  ReportTitle = paste(Acronym," ",VitalSign," Summary.html",sep="")
+  render("VitalSignOverview.rmd", output_file = ReportTitle, params = list(VSID=VitalSignID))
+  cat(ReportTitle," written  \n")
+}
+
+```
