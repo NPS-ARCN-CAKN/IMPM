@@ -12,20 +12,76 @@ params:
 ---
 
 ```{r setup, include=FALSE,echo=FALSE}
-# Move the VSID from the report parameters in the YAML above to a variable
-VSID = params$VSID
-#VSID=18
-
 # Setup knitr
 knitr::opts_chunk$set(echo = TRUE)
-
-
 # Load libraries
 library(odbc)
 library(tidyverse)
 
 # Database connection
 Connection = dbConnect(odbc(),Driver = "Sql Server",Server = "inp2300irmadb01\\ntwk", Database = "AKRO")
+
+# Set the VSID to the VitalSign you want:
+if(params$VSID == 0){
+  VSID = 18  #  ARCN   Brown Bears 
+  # VSID = 19  #  ARCN   Caribou 
+  VSID = 5  #  ARCN   Climate 
+  # VSID = 7  #  ARCN   Coastal Shoreline Change 
+  # VSID = 20  #  ARCN   Dall's Sheep 
+  # VSID = 27  #  ARCN   Fire Extent and Severity 
+  # VSID = 11  #  ARCN   Lagoon Communities and Ecosystems 
+  # VSID = 12  #  ARCN   Lake Communities and Ecosystems 
+  # VSID = 17  #  ARCN   Landbird Monitoring 
+  # VSID = 21  #  ARCN   Moose 
+  # VSID = 22  #  ARCN   Muskox 
+  # VSID = 9  #  ARCN   Permafrost 
+  # VSID = 133  #  ARCN   Shallow Lakes 
+  # VSID = 13  #  ARCN   Stream Communities and Ecosystems 
+  # VSID = 28  #  ARCN   Terrestrial Landscape Patterns and Dynamics 
+  # VSID = 24  #  ARCN   Terrestrial Vegetation and Soils 
+  # VSID = 81  #  ARCN   Western Yellow-billed Loons 
+  # VSID = 40  #  CAKN   Air Quality 
+  # VSID = 39  #  CAKN   Bald Eagle 
+  # VSID = 134  #  CAKN   Caribou - DENA 
+  # VSID = 49  #  CAKN   Caribou - WRST 
+  # VSID = 36  #  CAKN   Climate 
+  # VSID = 44  #  CAKN   Dall's Sheep 
+  # VSID = 52  #  CAKN   Glaciers 
+  # VSID = 54  #  CAKN   Golden Eagles 
+  # VSID = 42  #  CAKN   Moose 
+  # VSID = 38  #  CAKN   Passerines 
+  # VSID = 31  #  CAKN   Peregrine Falcons 
+  # VSID = 43  #  CAKN   Permafrost 
+  # VSID = 51  #  CAKN   Plant Phenology 
+  # VSID = 34  #  CAKN   Shallow Lakes 
+  # VSID = 48  #  CAKN   Small Mammals 
+  # VSID = 71  #  CAKN   Soundscape 
+  # VSID = 72  #  CAKN   Streams and Rivers 
+  # VSID = 37  #  CAKN   Vegetation Structure and Composition 
+  # VSID = 45  #  CAKN   Wolves 
+} else {
+  VSID = params$VSID
+}
+
+
+# If you need an inventory of VSIDs:
+# Get the vital signs
+Sql = paste("SELECT Acronym,NetworkVSName,VSID FROM vwVitalSignOverview
+  WHERE Status<>'Deferred' ORDER BY Acronym,NetworkVSName",sep="")
+# Vital Sign overview data frame
+VSInventory = dbGetQuery(Connection,Sql)
+for(i in 1:nrow(VSInventory)){
+  cat("VSID = ", VSInventory[i,'VSID']," # ",VSInventory[i,'Acronym']," ",VSInventory[i,'NetworkVSName'],"\n")
+}
+
+
+# Delete the existing html file
+if (file.exists("VitalSignOverview.html")) {
+  # Delete the file
+  removed = file.remove("VitalSignOverview.html")
+}
+
+
 
 # Function to fix an SQL query by replacing every comma with a newline - makes sql more readable
 FixSql = function(Sql) {
@@ -34,6 +90,8 @@ FixSql = function(Sql) {
   return(FixedSql)
 }
 ```
+
+# `r VSID`
 
 ```{r,label="Get the Vital Sign overview info", echo=FALSE}
 
@@ -104,13 +162,13 @@ knitr::kable(t(vs %>% select(VitalSign
 ,Directory
 ,Website
 ,Address
-,NPSDataStore)),escape = TRUE,na.rm=TRUE)
+,NPSDataStore,VSID)),escape = TRUE,na.rm=TRUE)
 
 ```
 
 # Protocols 
 
-Table 2. shows the monitoring protocol(s) that have been implemented for the `r vs$VitalSign` monitoring program. Also shown are the schedule of deliverables to be fulfilled during each remeasurement cycle, and a list of completed remeasurements..
+Table 2. shows the monitoring protocol(s) that have been implemented for the `r vs$VitalSign` monitoring program. Also shown are the schedule of deliverables to be fulfilled during each remeasurement cycle, and a list of completed remeasurements for the protocol.
 
 ```{r,label="VS Protocols",echo=FALSE,tab.cap=paste("Table 2. ",vs$VitalSign," monitoring protocol(s).",sep="")}
 
@@ -135,6 +193,7 @@ protocols$ProtocolCitation = iconv(protocols$ProtocolCitation, from = "UTF-8", t
 
 ```
 
+
 ```{r,label="output protocols",results='asis',echo=FALSE}
 for(i in 1:nrow(protocols)){
   Title = protocols[i,'ProtocolTitle']
@@ -143,7 +202,8 @@ for(i in 1:nrow(protocols)){
   RefCode = protocols[i,"IRMAReferenceCode"]
   ProtocolReference = paste("[",Citation,"](https://irma.nps.gov/DataStore/Reference/Profile/",RefCode,") \n",sep="")
   cat("## ",Citation,"  \n")
-  
+ 
+  print(knitr::kable(protocols))
   
   cat("### Deliverables Schedule  \n")
   
@@ -155,26 +215,20 @@ for(i in 1:nrow(protocols)){
 	  ,[Description]
 ,[Schedule]
 ,[Responsibility]
---,[Specifications]
---,[FileNamingScheme]
---,[DataHandling]
---,[QAQC]
---,[Archival]
---,[BuilderTasks]
---,[ValidatorTasks]
---,[CertifierTasks]
---,[DeliverableID]
---,[ProtocolID]
---,[RecordInsertedDate]
---,[RecordInsertedBy]
   FROM [AKRO].[dbo].[tblProtocolDeliverables]
- WHERE ProtocolID=",ProtocolID," ORDER BY DeliverableIdentifier",sep="")
-    ds = dbGetQuery(Connection,Sql)
-    cat("This protocol describes the collection, delivery and management of ",nrow(ds)," deliverables.\n\n",ProtocolReference,"  \n")
-    print(knitr::kable(ds))
+ --WHERE ProtocolID=",ProtocolID," 
+ORDER BY DeliverableIdentifier",sep="")
+  cat("\n\n",Sql,"  \n\n")
+  ds = dbGetQuery(Connection,Sql)
     
-  cat("### Remeasurements  \n")
-  
+    cat("This protocol describes the collection, delivery and management of ",nrow(ds)," deliverables.  \n\n",ProtocolReference,"  \n  ")
+    
+    cat("  \n\n")
+    print(knitr::kable(ds %>% filter(ProtocolID == protocols$ProtocolID)))
+    cat("  \n\n")
+    
+  cat("### Remeasurements  \n  ")
+
   Sql = paste("SELECT [Description]
       --,[BeginDate]
       --,[EndDate]
@@ -190,10 +244,12 @@ for(i in 1:nrow(protocols)){
  WHERE ProtocolID=",ProtocolID,"
  ORDER BY Description DESC",sep="")
     rm = dbGetQuery(Connection,Sql)
+    cat("  \n")
     cat("This protocol has been used during ",nrow(rm)," remeasurements:\n\n",Citation,"  \n")
+    cat("  \n")
     print(knitr::kable(rm,na.rm=TRUE))
-    
-    
+    cat("  \n")
+
 }
 
 ```
@@ -218,12 +274,10 @@ ReportTitle = paste(vs$Acronym," ",vs$VitalSign," Summary.html",sep="")
 # }
 To=ReportTitle
 
-print(paste("Printing ",From," to ",To,sep=""))
-
 # Try to copy the file to the destination
 tryCatch({
-  file.copy(From, To, overwrite = TRUE)
-  message(paste("Report ",From," generated and and copied to ",To,sep=""))
+  #printed = file.copy(From, To, overwrite = TRUE)
+  #message(paste("Report ",From," generated and and copied to ",To,sep=""))
 }, error = function(e) {
   
   # An error happened
@@ -249,11 +303,12 @@ tryCatch({
 # library(httr)
 # 
 # # Define the URL for the GET request
+# ProjectReference = 2218298
 # url = "https://irmaservices.nps.gov/datastore-secure/v7/rest/Profile/2285179"
 # url = "https://irmaservices.nps.gov/datastore/v7/rest/QuickSearch?q=moose&format=json"
 # 
 # # Moose Project (ARCN)
-# url = "https://irmaservices.nps.gov/datastore/v7/rest/ReferenceCodeSearch?q=2222140&format=json"
+# url = paste("https://irmaservices.nps.gov/datastore/v7/rest/ReferenceCodeSearch?q=",ProjectReference,"&format=json",sep="")
 # 
 # # Make the GET request
 # response <- GET(url)
@@ -264,16 +319,25 @@ tryCatch({
 # if (status_code == 200) {
 #   # Parse the JSON content from the response
 #   content <- content(response, "parsed", type = "application/json")
-#   
+# 
 #   # Print the parsed content
 #   #print(content)
-#   
+# 
 #   # for (i in 1:length(content$items)){
 #   #   print(i)
 #   # }
-#   
+# 
 #   Title = content[[1]][["title"]]
-#   print(Title)
+#   Citation = content[[1]][["citation"]]
+#   ReferenceURL = content[[1]][["referenceUrl"]]
+#   TypeName = content[[1]][["typeName"]]
+#   cat(Title,"  \n")
+#   cat(Citation,"  \n")
+#   cat(ReferenceURL,"  \n")
+#   cat(url,"  \n")
+#   cat(TypeName,"  \n")
+# 
+#   
 # } else {
 #   # Handle errors
 #   print(paste("Request failed with status code", status_code))

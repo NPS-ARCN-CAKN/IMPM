@@ -40,6 +40,8 @@ FixSql = function(Sql) {
 
 # Vital Signs Summary Report Generator
 
+# NOTE: THIS IS NOT WORKING. The target rmd works fine on its own, but won't render correctly when called.
+
 This template is used to cycle through the active ARCN/CAKN Vital Signs and generate summary reports for each.
 
 ```{r, echo=FALSE}
@@ -62,8 +64,52 @@ for(i in 1:nrow(VSInventory)){
   VitalSignID = VSInventory[i,"VSID"]
   # Render the report with specific parameters
   ReportTitle = paste(Acronym," ",VitalSign," Summary.html",sep="")
-  render("VitalSignOverview.rmd", output_file = ReportTitle, params = list(VSID=VitalSignID))
-  cat(ReportTitle," written  \n")
+  #render("VitalSignOverview.rmd", output_file = ReportTitle, params = list(VSID=VitalSignID))
+  RenderCommand = paste("render('VitalSignOverview.rmd', output_file = '",gsub("'","",ReportTitle),"', params = list(VSID=",VitalSignID,"))  \n",sep="")
+  cat(RenderCommand)
 }
 
 ```
+
+```{r}
+# Render individually
+render('VitalSignOverview.rmd', output_file = 'ARCN Brown Bears Summary.html', params = list(VSID=18))  
+render('VitalSignOverview.rmd', output_file = 'ARCN Caribou Summary.html', params = list(VSID=19))  
+render('VitalSignOverview.rmd', output_file = 'ARCN Climate Summary.html', params = list(VSID=5))  
+render('VitalSignOverview.rmd', output_file = 'ARCN Coastal Shoreline Change Summary.html', params = list(VSID=7))  
+render('VitalSignOverview.rmd', output_file = 'ARCN Dalls Sheep Summary.html', params = list(VSID=20))  
+render('VitalSignOverview.rmd', output_file = 'ARCN Fire Extent and Severity Summary.html', params = list(VSID=27))  
+render('VitalSignOverview.rmd', output_file = 'ARCN Lagoon Communities and Ecosystems Summary.html', params = list(VSID=11))  
+render('VitalSignOverview.rmd', output_file = 'ARCN Lake Communities and Ecosystems Summary.html', params = list(VSID=12))  
+render('VitalSignOverview.rmd', output_file = 'ARCN Landbird Monitoring Summary.html', params = list(VSID=17))  
+render('VitalSignOverview.rmd', output_file = 'ARCN Moose Summary.html', params = list(VSID=21))  
+render('VitalSignOverview.rmd', output_file = 'ARCN Muskox Summary.html', params = list(VSID=22))  
+render('VitalSignOverview.rmd', output_file = 'ARCN Permafrost Summary.html', params = list(VSID=9))  
+render('VitalSignOverview.rmd', output_file = 'ARCN Shallow Lakes Summary.html', params = list(VSID=133))  
+render('VitalSignOverview.rmd', output_file = 'ARCN Stream Communities and Ecosystems Summary.html', params = list(VSID=13))  
+render('VitalSignOverview.rmd', output_file = 'ARCN Terrestrial Landscape Patterns and Dynamics Summary.html', params = list(VSID=28))  
+render('VitalSignOverview.rmd', output_file = 'ARCN Terrestrial Vegetation and Soils Summary.html', params = list(VSID=24))  
+render('VitalSignOverview.rmd', output_file = 'ARCN Western Yellow-billed Loons Summary.html', params = list(VSID=81))  
+render('VitalSignOverview.rmd', output_file = 'CAKN Air Quality Summary.html', params = list(VSID=40))  
+render('VitalSignOverview.rmd', output_file = 'CAKN Bald Eagle Summary.html', params = list(VSID=39))  
+render('VitalSignOverview.rmd', output_file = 'CAKN Caribou - DENA Summary.html', params = list(VSID=134))  
+render('VitalSignOverview.rmd', output_file = 'CAKN Caribou - WRST Summary.html', params = list(VSID=49))  
+render('VitalSignOverview.rmd', output_file = 'CAKN Climate Summary.html', params = list(VSID=36))  
+render('VitalSignOverview.rmd', output_file = 'CAKN Dalls Sheep Summary.html', params = list(VSID=44))  
+render('VitalSignOverview.rmd', output_file = 'CAKN Glaciers Summary.html', params = list(VSID=52))  
+render('VitalSignOverview.rmd', output_file = 'CAKN Golden Eagles Summary.html', params = list(VSID=54))  
+render('VitalSignOverview.rmd', output_file = 'CAKN Moose Summary.html', params = list(VSID=42))  
+render('VitalSignOverview.rmd', output_file = 'CAKN Passerines Summary.html', params = list(VSID=38))  
+render('VitalSignOverview.rmd', output_file = 'CAKN Peregrine Falcons Summary.html', params = list(VSID=31))  
+render('VitalSignOverview.rmd', output_file = 'CAKN Permafrost Summary.html', params = list(VSID=43))  
+render('VitalSignOverview.rmd', output_file = 'CAKN Plant Phenology Summary.html', params = list(VSID=51))  
+render('VitalSignOverview.rmd', output_file = 'CAKN Shallow Lakes Summary.html', params = list(VSID=34))  
+render('VitalSignOverview.rmd', output_file = 'CAKN Small Mammals Summary.html', params = list(VSID=48))  
+render('VitalSignOverview.rmd', output_file = 'CAKN Soundscape Summary.html', params = list(VSID=71))  
+render('VitalSignOverview.rmd', output_file = 'CAKN Streams and Rivers Summary.html', params = list(VSID=72))  
+render('VitalSignOverview.rmd', output_file = 'CAKN Vegetation Structure and Composition Summary.html', params = list(VSID=37))  
+render('VitalSignOverview.rmd', output_file = 'CAKN Wolves Summary.html', params = list(VSID=45))  
+
+
+```
+
