@@ -11,21 +11,28 @@ params:
   VSID: 0
 ---
 
-```{r setup, include=FALSE,echo=FALSE}
+```{r setup, include=FALSE,echo=FALSE,warning=FALSE}
 # Setup knitr
 knitr::opts_chunk$set(echo = TRUE)
 # Load libraries
 library(odbc)
 library(tidyverse)
+library(leaflet)
+library(sf)
+library(httr)
+library(leaflet)
+library(sf)
+library(DT)
+
 
 # Database connection
 Connection = dbConnect(odbc(),Driver = "Sql Server",Server = "inp2300irmadb01\\ntwk", Database = "AKRO")
 
 # Set the VSID to the VitalSign you want:
 if(params$VSID == 0){
-  VSID = 18  #  ARCN   Brown Bears 
-  # VSID = 19  #  ARCN   Caribou 
-  VSID = 5  #  ARCN   Climate 
+  #VSID = 18  #  ARCN   Brown Bears 
+  VSID = 19  #  ARCN   Caribou 
+  #VSID = 5  #  ARCN   Climate 
   # VSID = 7  #  ARCN   Coastal Shoreline Change 
   # VSID = 20  #  ARCN   Dall's Sheep 
   # VSID = 27  #  ARCN   Fire Extent and Severity 
@@ -91,9 +98,7 @@ FixSql = function(Sql) {
 }
 ```
 
-# `r VSID`
-
-```{r,label="Get the Vital Sign overview info", echo=FALSE}
+```{r,label="Get the Vital Sign overview info", echo=FALSE,warning=FALSE}
 
 # Build a query
 Sql = paste("SELECT 
@@ -110,6 +115,7 @@ Acronym
 ,Convert(varchar(1000),Address) as Address
 ,'[https://irma.nps.gov/DataStore/Reference/Profile/' + Convert(varchar(20),IRMAProjectReference) + '](https://irma.nps.gov/DataStore/Reference/Profile/' + Convert(varchar(20),IRMAProjectReference) + ')' as NPSDataStore
 ,ProjectLeadContactID
+,IRMAProjectReference
 ,NetworkID,Network
 ,VSID
 FROM vwVitalSignOverview
@@ -142,15 +148,91 @@ Anchorage, AK 99501
 
 `r format(Sys.Date(), "%B %d, %Y")`
 
-# Overview
+# Introduction
+
+This report presents a 'snapshot in time' overview of the Arctic Network's `r vs$VitalSign` monitoring program. Included are details on personnel, monitoring protocols, remeasurements and informational products.
+
+
+# Vital Sign Overview
 
 `r Overview`
+
+## Map
+
+```{r,echo=FALSE,warning=FALSE}
+
+# Fix IRMA camelCase errors
+capitalize_first_letter <- function(x) {
+  str_replace_all(x, "\\b[a-z]", toupper)
+}
+
+# Define the URL
+url = paste("https://irmaservices.nps.gov/datastore/v7/rest/Profile/",vs$IRMAProjectReference,"?format=json",sep="")
+
+# Make the GET request
+response <- GET(url)
+
+# Extract the content as text
+RESTContent <- content(response, "text")
+
+# Parse the text into a JSON object
+json <- jsonlite::fromJSON(RESTContent)
+
+# Extract info from the REST query
+Units = json$units
+ProjectReferenceCode = json$referenceId
+ProjectCitation = json$citation
+ProjectLink = paste('<a href="https://irma.nps.gov/DataStore/Reference/Profile/',ProjectReferenceCode,'">',ProjectCitation,'</a>',sep='')
+Visibility = json$visibility
+Subjects = json$subjects
+Keywords = json$keywords
+Sensitivity = json$permissions$sensitivity
+SensitivityDetail = json$permissions$sensitivityDetail
+Quality = json$permissions$quality
+UseConstraints = json$permissions$useConstraints
+FileAccess = json$permissions$fileAccess
+ReferenceOwners = json$permissions$referenceOwners
+FileAccessUsers = json$permissions$usersWithFileAccess
+ParksWKT = as.data.frame(json$boundingBoxes)
+Products = as.data.frame(json$products)
+# De-camelCase the column headings
+colnames(Products) = sapply(colnames(Products), capitalize_first_letter)
+Products$Product = paste('<a href="',Products$Citation,'"https://irma.nps.gov/DataStore/Reference/Profile/',ProjectReferenceCode,'">',Products$Citation,'<\\a>',sep='')
+
+# Create a Product column with a link to the Data Store
+Products = Products %>%
+  mutate(Product = paste0('<a href="https://irma.nps.gov/DataStore/Reference/Profile/', Products$ReferenceId, '">', Products$Citation, '</a>'))
+
+```
+
+```{r,echo=FALSE,warning=FALSE}
+
+# Sample data frame with WKT column
+df <- data.frame(
+  wkt = c(
+    "POLYGON ((-122.4 37.8, -122.5 37.7, -122.3 37.6, -122.4 37.8))",
+    "POLYGON ((-122.5 37.9, -122.6 37.8, -122.4 37.7, -122.5 37.9))"
+  ),
+  stringsAsFactors = FALSE
+)
+
+# Convert WKT to sf objects
+#sf_data <- ParksWKT %>%  st_as_sf(wkt = "wkt", crs = 4326)
+sf_data <- ParksWKT %>% st_as_sf(wkt = "wkt", crs = 4326)
+
+# Create a leaflet map
+leaflet() %>%
+  addTiles() %>%  # Add default OpenStreetMap tiles
+  addPolygons(data = sf_data, color = "blue", weight = 2, opacity = 0.5)
+
+
+```
 
 # Details
 
 Details regarding the `r vs$VitalSign` monitoring program appear in Table 1.
 
-```{r,label="Show the VS Details",echo=FALSE,tab.cap=paste("Table 1. ",vs$VitalSign," monitoring program details.",sep="")}
+```{r,label="Show the VS Details",echo=FALSE,tab.cap=paste("Table 1. ",vs$VitalSign," monitoring program details.",sep=""),warning=FALSE}
 
 # Extract the vital sign details, transpose it tall and skinny
 knitr::kable(t(vs %>% select(VitalSign
@@ -168,9 +250,9 @@ knitr::kable(t(vs %>% select(VitalSign
 
 # Protocols 
 
-Table 2. shows the monitoring protocol(s) that have been implemented for the `r vs$VitalSign` monitoring program. Also shown are the schedule of deliverables to be fulfilled during each remeasurement cycle, and a list of completed remeasurements for the protocol.
+Below are described the monitoring protocol(s) that have been implemented for the `r vs$VitalSign` monitoring program. Also shown are the schedule of deliverables to be fulfilled during each remeasurement cycle, and a list of completed remeasurements for the protocol.
 
-```{r,label="VS Protocols",echo=FALSE,tab.cap=paste("Table 2. ",vs$VitalSign," monitoring protocol(s).",sep="")}
+```{r,label="VS Protocols",echo=FALSE,tab.cap=paste("Table 2. ",vs$VitalSign," monitoring protocol(s).",sep=""),warning=FALSE}
 
 Sql = paste("SELECT [ProtocolTitle]
 ,[ProtocolCitation]
@@ -194,7 +276,7 @@ protocols$ProtocolCitation = iconv(protocols$ProtocolCitation, from = "UTF-8", t
 ```
 
 
-```{r,label="output protocols",results='asis',echo=FALSE}
+```{r,label="output protocols",results='asis',echo=FALSE,warning=FALSE}
 for(i in 1:nrow(protocols)){
   Title = protocols[i,'ProtocolTitle']
   Citation = protocols[i,'ProtocolCitation']
@@ -203,7 +285,7 @@ for(i in 1:nrow(protocols)){
   ProtocolReference = paste("[",Citation,"](https://irma.nps.gov/DataStore/Reference/Profile/",RefCode,") \n",sep="")
   cat("## ",Citation,"  \n")
  
-  print(knitr::kable(protocols))
+  print(knitr::kable(t(protocols)))
   
   cat("### Deliverables Schedule  \n")
   
@@ -212,50 +294,79 @@ for(i in 1:nrow(protocols)){
 --,[SOP]
 --,[SOPVersion]
 --,[Format]
-	  ,[Description]
+--,[Description]
 ,[Schedule]
-,[Responsibility]
+,[Responsibility],ProtocolID
   FROM [AKRO].[dbo].[tblProtocolDeliverables]
- --WHERE ProtocolID=",ProtocolID," 
+WHERE ProtocolID=",ProtocolID," 
 ORDER BY DeliverableIdentifier",sep="")
-  cat("\n\n",Sql,"  \n\n")
+
   ds = dbGetQuery(Connection,Sql)
-    
     cat("This protocol describes the collection, delivery and management of ",nrow(ds)," deliverables.  \n\n",ProtocolReference,"  \n  ")
-    
     cat("  \n\n")
     print(knitr::kable(ds %>% filter(ProtocolID == protocols$ProtocolID)))
     cat("  \n\n")
     
-  cat("### Remeasurements  \n  ")
-
-  Sql = paste("SELECT [Description]
-      --,[BeginDate]
-      --,[EndDate]
-      ,'https://irma.nps.gov/DataStore/Reference/Profile/'+ Convert(Varchar(20),[DeliverablesIRMAReferenceCode]) as Deliverables
-      ,'https://irma.nps.gov/DataStore/Reference/Profile/'+ Convert(Varchar(20),[ReportIRMAReferenceCode]) as Report
-      ,[Notes]
-      --,[RemeasurementAbstract]
-      --,[ProtocolID]
-      --,[RecordInsertedDate]
-      --,[RecordInsertedBy]
-      --,[RemeasurementID]
-  FROM [AKRO].[dbo].[tblProtocolRemeasurements]
- WHERE ProtocolID=",ProtocolID,"
- ORDER BY Description DESC",sep="")
-    rm = dbGetQuery(Connection,Sql)
-    cat("  \n")
-    cat("This protocol has been used during ",nrow(rm)," remeasurements:\n\n",Citation,"  \n")
-    cat("  \n")
-    print(knitr::kable(rm,na.rm=TRUE))
-    cat("  \n")
+ #  cat("### Remeasurements  \n  ")
+ #  Sql = paste("SELECT 
+ #      -- [Description]
+ #      --,[BeginDate]
+ #      --,[EndDate]
+ #      isnull('<a href=https://irma.nps.gov/DataStore/Reference/Profile/'+ Convert(Varchar(20),[DeliverablesIRMAReferenceCode]) + '>' + Description + '</a>',Description) as Deliverables
+ #      ,[DeliverablesIRMAReferenceCode]
+ #      ,'<a href=https://irma.nps.gov/DataStore/Reference/Profile/'+ Convert(Varchar(20),[ReportIRMAReferenceCode]) + '>'+ Convert(Varchar(20),[ReportIRMAReferenceCode]) + '</a>' as Report
+ #      
+ #      --,[Notes]
+ #      --,[RemeasurementAbstract]
+ #      --,[ProtocolID]
+ #      --,[RecordInsertedDate]
+ #      --,[RecordInsertedBy]
+ #      --,[RemeasurementID]
+ #  FROM [AKRO].[dbo].[tblProtocolRemeasurements]
+ # WHERE ProtocolID=",ProtocolID,"
+ # ORDER BY Description DESC",sep="")
+ #    rm = dbGetQuery(Connection,Sql)
+ #    
+ #    cat("  \n")
+ #    cat("This protocol has been used during ",nrow(rm)," remeasurements:\n\n",Citation,"  \n")
+ #    cat("  \n")
+ #    print(knitr::kable(rm,na.rm=TRUE))
+ #    #print(datatable(rm, options = list(pageLength = 100, autoWidth = TRUE),escape=FALSE))
+ #    #%>% mutate(Product = paste0('<a href="https://irma.nps.gov/DataStore/Reference/Profile/', Products$ReferenceId, '">', Products$Citation, '</a>'))
+ #    cat("  \n")
 
 }
 
 ```
 
+# IRMA Project Reference Overview
 
-```{r,label="Write the report to the survey directory", echo=FALSE}
+The section below shows basic information about the Vital Sign's Project Reference in the NPS Data Store, including relevant Parks, reports, journal articles and datasets.
+
+`r ProjectLink`
+
+
+
+## Products
+
+
+
+```{r,echo=FALSE,warning=FALSE}
+Prods = Products %>% select(Product,ReferenceType,Visibility,FileCount,ReferenceId) %>% arrange(Product)
+# Render the data table with sorting and filtering options 
+ datatable(Prods, options = list(pageLength = 100, autoWidth = TRUE),escape=FALSE)
+# #write.table(Products %>% select(Title,ReferenceId),paste("C:/Temp/z",vs$VitalSign," Products.csv",sep=""),row.names = FALSE,na="",quote = FALSE)
+# 
+# Sql = Products %>% mutate(`begin transaction -- commit rollback` = paste("INSERT INTO tblProtocolRemeasurements(ProtocolID,Description,StartDate,EndDate)VALUES(",vs$VSID,",'",Products$Title,"',","@StartDate,@EndDate)",sep="")) %>% 
+#   select(`begin transaction -- commit rollback`) %>% arrange(Products$Title)
+# for(i in 1:nrow(Sql)){
+#   cat(Sql$`begin transaction -- commit rollback`,"  \n\n","\n")
+# }
+```
+
+
+
+```{r,label="Write the report to the survey directory", echo=FALSE,warning=FALSE}
 
 # This template will output to an html file named MooseSurveyReport.htms
 # Rename it and copy it to the survey directory if it exists
@@ -274,72 +385,36 @@ ReportTitle = paste(vs$Acronym," ",vs$VitalSign," Summary.html",sep="")
 # }
 To=ReportTitle
 
-# Try to copy the file to the destination
-tryCatch({
-  #printed = file.copy(From, To, overwrite = TRUE)
-  #message(paste("Report ",From," generated and and copied to ",To,sep=""))
-}, error = function(e) {
-  
-  # An error happened
-  message("Error: ", e$message)
-  
-})
-
-
-```
-
-
-
-
-
-
-
-
-
-
-```{r,echo=FALSE}
-# Install and load the httr package
-#install.packages("httr")
-# library(httr)
-# 
-# # Define the URL for the GET request
-# ProjectReference = 2218298
-# url = "https://irmaservices.nps.gov/datastore-secure/v7/rest/Profile/2285179"
-# url = "https://irmaservices.nps.gov/datastore/v7/rest/QuickSearch?q=moose&format=json"
-# 
-# # Moose Project (ARCN)
-# url = paste("https://irmaservices.nps.gov/datastore/v7/rest/ReferenceCodeSearch?q=",ProjectReference,"&format=json",sep="")
-# 
-# # Make the GET request
-# response <- GET(url)
-# 
-# # Check the status code of the response
-# status_code <- status_code(response)
-# 
-# if (status_code == 200) {
-#   # Parse the JSON content from the response
-#   content <- content(response, "parsed", type = "application/json")
-# 
-#   # Print the parsed content
-#   #print(content)
-# 
-#   # for (i in 1:length(content$items)){
-#   #   print(i)
-#   # }
-# 
-#   Title = content[[1]][["title"]]
-#   Citation = content[[1]][["citation"]]
-#   ReferenceURL = content[[1]][["referenceUrl"]]
-#   TypeName = content[[1]][["typeName"]]
-#   cat(Title,"  \n")
-#   cat(Citation,"  \n")
-#   cat(ReferenceURL,"  \n")
-#   cat(url,"  \n")
-#   cat(TypeName,"  \n")
-# 
+# # Try to copy the file to the destination
+# tryCatch({
+#   #printed = file.copy(From, To, overwrite = TRUE)
+#   #message(paste("Report ",From," generated and and copied to ",To,sep=""))
+# }, error = function(e) {
 #   
-# } else {
-#   # Handle errors
-#   print(paste("Request failed with status code", status_code))
-# }
+#   # An error happened
+#   message("Error: ", e$message)
+#   
+# })
+
+
 ```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
