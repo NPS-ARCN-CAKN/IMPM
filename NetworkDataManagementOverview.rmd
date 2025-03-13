@@ -11,26 +11,6 @@ params:
   VSID: 0
 ---
 
-```{r setup, include=FALSE,echo=FALSE,warning=FALSE}
-# Setup knitr
-knitr::opts_chunk$set(echo = TRUE)
-# Load libraries
-library(odbc)
-library(tidyverse)
-library(leaflet)
-library(sf)
-library(httr)
-library(leaflet)
-library(sf)
-library(DT)
-
-
-# Database connection
-Connection = dbConnect(odbc(),Driver = "Sql Server",Server = "inp2300irmadb01\\ntwk", Database = "AKRO")
-
-
-```
-
 # Data Continuity Road Map: Information Management Summary for the Arctic Inventory and Monitoring Program
 
 ## *National Park Service, Alaska Region*
