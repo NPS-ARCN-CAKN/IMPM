@@ -4,12 +4,56 @@ author: ""
 date: ""
 output: 
   html_document: 
-    toc: true 
+    toc: false 
     toc_depth: 3
     toc_float: true
 params:
   VSID: 0
 ---
+
+```{r setup, include=FALSE,echo=FALSE,warning=FALSE}
+# Setup knitr
+knitr::opts_chunk$set(echo = TRUE)
+# Load libraries
+library(odbc)
+library(tidyverse)
+library(leaflet)
+library(sf)
+library(httr)
+library(leaflet)
+library(sf)
+library(DT)
+
+
+# Database connection
+Connection = dbConnect(odbc(),Driver = "Sql Server",Server = "inp2300irmadb01\\ntwk", Database = "AKRO")
+
+# If you need an inventory of VSIDs:
+# Get the vital signs
+Sql = paste("SELECT        NetworkVSName as [Vital Sign], ProjectLeadLastname+', '+ProjectLeadFirstname as [Project leader], Status
+, replace(FilesDirectory,'\','/') As [Files directory]
+,'<a href=https://irma.nps.gov/DataStore/Reference/Profile/'+ Convert(Varchar(20),IRMAProjectReference) + '>' + convert(varchar(40),IRMAProjectReference) + '</a>' as [Project Reference]
+, Website, 'https://irma.nps.gov/DataStore/Reference/Profile/'+convert(varchar(40),IRMAProjectReference),IRMAProjectReference
+--,vsid
+FROM            vwVitalSignOverview
+WHERE        (Status <> 'deferred') AND (NetworkID = 1)
+ORDER BY Acronym, NetworkVSName",sep="")
+# Vital Sign overview data frame
+vs = dbGetQuery(Connection,Sql)
+# knitr::kable(t(vs))
+
+
+for(i in 1:nrow(vs)){
+  VitalSign = vs[i,1]
+  Directory = vs[i,4]
+  Project = vs[i,8]
+  cat("##",VitalSign,"   \n")
+  cat("Shared drive: `",Directory,"`   \n")
+  cat("IRMA Data Store: ",Project,"   \n")
+}
+
+
+```
 
 # Data Continuity Road Map: Information Management Summary for the Arctic Inventory and Monitoring Program
 
@@ -48,4 +92,96 @@ ARCN relies on three Microsoft SQL Servers for project and data management:
 
 IRMA is the public face of the ARCN. Each Vital Sign has a Project Reference to which products such as reports, journal articles and datasets are published. We also publish mission critical documents such as monitoring protocols, standard operating procedures, data quality standards and quality assurance plans in IRMA. Each Vital Sign Project Reference can be found by using the [ARCN Program Reference](https://irma.nps.gov/DataStore/Reference/Profile/2208369) as a starting point.
 
-# Data Management Systems By Vital Sign
+# Data Management Systems Overviews By Vital Sign
+
+## Brown Bears
+
+Shared drive: `O:\Monitoring\Vital Signs\Brown Bears`\
+IRMA Data Store: 2210687\
+
+## Caribou
+
+Shared drive: `O:\Monitoring\Vital Signs\Caribou`\
+IRMA Data Store: 2216435\
+
+## Climate
+
+Shared drive: `O:\Monitoring\Vital Signs\Climate and Weather`\
+IRMA Data Store: 2210690\
+
+## Coastal Shoreline Change
+
+Shared drive: `O:\Monitoring\Vital Signs\Coastal Erosion`\
+IRMA Data Store: 2210650\
+
+## Dall's Sheep
+
+Shared drive: `O:\Monitoring\Vital Signs\Dall's Sheep`\
+IRMA Data Store: 2214983\
+
+## Fire Extent and Severity
+
+Shared drive: `O:\Monitoring\Vital Signs\Fire Extent and Severity`\
+IRMA Data Store: 2219489\
+
+## Lagoon Communities and Ecosystems
+
+Shared drive: `O:\Monitoring\Vital Signs\Lagoon Communities and Ecosystems`\
+IRMA Data Store: 2216893\
+
+## Lake Communities and Ecosystems
+
+Shared drive: `O:\Monitoring\Vital Signs\Lake Communities and Ecosystems`\
+IRMA Data Store: 2219173\
+
+## Landbird Monitoring
+
+Shared drive: `O:\Monitoring\Vital Signs\Landbirds`\
+IRMA Data Store: 2219895\
+
+## Moose
+
+Shared drive: `O:\Monitoring\Vital Signs\Moose`\
+IRMA Data Store: 2222140\
+
+## Muskox
+
+Shared drive: `O:\Monitoring\Vital Signs\Muskox`\
+IRMA Data Store: 2219896\
+
+## Permafrost
+
+Shared drive: `O:\Monitoring\Vital Signs\Permafrost`\
+IRMA Data Store: 2220038\
+
+## Shallow Lakes
+
+Shared drive: `J:\Monitoring\Water_Quality_Macroinvert`\
+IRMA Data Store: 2215910\
+
+## Stream Communities and Ecosystems
+
+Shared drive: `O:\Monitoring\Vital Signs\Stream Communities and Ecosystems`\
+IRMA Data Store: 2219172\
+
+## Terrestrial Landscape Patterns and Dynamics
+
+Shared drive: `O:\Monitoring\Vital Signs\Terrestrial Landscape Patterns and Dynamics`\
+IRMA Data Store: 2211095\
+
+## Terrestrial Vegetation and Soils
+
+Shared drive: `O:\Monitoring\Vital Signs\Terrestrial Vegetation and Soils`\
+IRMA Data Store: 2220078\
+All files are organized on the O drive in clearly labeled file hierarchy, organized by overarching utility (e.g. Data, Photos, FieldPlanning), and then by year. All final data products are on SQL server. All products for 2024 are on the O Drive.
+
+I do not believe Dave had been in the habit of publishing data packages to IRMA for the Nodes data.
+
+All lichen monitoring data, including Exclosures, is in this subsection of the O Drive (O:\\Monitoring\\Vital Signs\\Terrestrial Vegetation and Soils\\Data\\Lichens), as well as published to IRMA. (The only data not yet published publicly are the tissue metal concentrations from OSU, but these are backed up on the O drive.)
+
+All files related to Red Dog are in this subset of the Drive: O:\\Monitoring\\Vital Signs\\Terrestrial Vegetation and Soils\\Data\\Lichens\\Haul Road Dataset. All but one table has been imported into SQL server, and all are available on IRMA.
+
+## Western Yellow-billed Loons
+
+Shared drive: `O:\Monitoring\Vital Signs\Yellow-billed Loons`\
+IRMA Data Store: 2216938
