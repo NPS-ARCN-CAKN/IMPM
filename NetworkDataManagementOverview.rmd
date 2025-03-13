@@ -31,64 +31,6 @@ Connection = dbConnect(odbc(),Driver = "Sql Server",Server = "inp2300irmadb01\\n
 
 ```
 
-```{r}
-# If you need an inventory of VSIDs:
-# Get the vital signs
-Sql = paste("SELECT        Acronym, NetworkVSName as [Vital Sign], ProjectLeadLastname+', '+ProjectLeadFirstname as [Project leader], Status
-, replace(FilesDirectory,'\','/') As [Files directory]
-, Website, IRMAProjectReference
---,vsid
-FROM            vwVitalSignOverview
-WHERE        (Status <> 'deferred') AND (NetworkID = 1)
-ORDER BY Acronym, NetworkVSName",sep="")
-# Vital Signs
-vs = dbGetQuery(Connection,Sql)
-
-# Function to fix an SQL query by replacing every comma with a newline - makes sql more readable
-FixSql = function(Sql) {
-  FixedSql = gsub(",", "\n,", Sql)
-  FixedSql = gsub(", ", ",", FixedSql)
-  return(FixedSql)
-}
-knitr::kable(vs)
-```
-
-```{r,label="Get the Vital Sign overview info", echo=FALSE,warning=FALSE}
-
-# Build a query
-Sql = paste("SELECT 
-Acronym
-,NetworkVSName AS VitalSign
-,ProjectLeadLastname + ', ' + ProjectLeadFirstname as ProjectLeader
-,'<a href=\"mailto:' + ProjectLeadEmail + '\">' + ProjectLeadEmail + '</a>' as Email
-,ProjectLeadTelephone as Telephone
-,Convert(varchar(8000),Overview) As Overview
-,Status
-,Convert(Date,ImplementationDate) as ImplementationDate
-,Replace(FilesDirectory,'\','\\') as Directory
-,Website
-,Convert(varchar(1000),Address) as Address
-,'[https://irma.nps.gov/DataStore/Reference/Profile/' + Convert(varchar(20),IRMAProjectReference) + '](https://irma.nps.gov/DataStore/Reference/Profile/' + Convert(varchar(20),IRMAProjectReference) + ')' as NPSDataStore
-,ProjectLeadContactID
-,IRMAProjectReference
-,NetworkID,Network
-,VSID
-FROM vwVitalSignOverview
-WHERE (VSID = ",VSID,")",sep="")
-
-# Vital Sign overview data frame
-vs = dbGetQuery(Connection,Sql)
-
-# Fix the directory path so it will show OK in markdown
-vs$Directory = gsub("\\\\", "\\\\\\\\", vs$Directory)
-
-# Get the overview into a variable so it can be displayed in markdown
-# Clean it so it displays in markdown better
-#Overview = gsub("\r\n", "\n", vs$Overview) # iconv(vs$Overview, from = "UTF-8", to = "ASCII//TRANSLIT", sub = "") 
-Overview = iconv(vs$Overview, from = "UTF-8", to = "ASCII//TRANSLIT", sub = "") 
-
-```
-
 # Data Continuity Road Map: Information Management Summary for the Arctic Inventory and Monitoring Program
 
 ## *National Park Service, Alaska Region*
@@ -106,18 +48,24 @@ Spring 2025 has brought significant change and uncertainty to the National Park 
 
 The ARCN relies heavily on a shared file server, an SQL Server database server, and the National Park Service's Integrated Resources Management Applications (IRMA) system for management of files and data produced by the program. A description of each of each of these systems follows:
 
+# Data Management Systems
+
 ## Shared network drive
 
 ARCN's shared network drive (the O:\\ drive) is the workbench for day to day data processing operations. Each Vital Sign has its own directory and ARCN personnal are expected to keep it up to date with data products as they proceed through the scientific life cycle. The O:\\ drive hosted on a server at the Fairbanks Administrative Center (FAC) and jointly administered by the Central Alaska I&M Network (CAKN) and Information Technology staff of Yukon-Charley Rivers/Gates of the Arctic. The current virtual machine UNC path is \\\\inpyugastorage\ARCN\ARCN. The file server is in a locked server room and backed up nightly. Off-site rotation of backup devices happens on a regular schedule to the Fairbanks Public Lands Information Center. Backups devices are encrypted with BitLocker. FAC IT staff and the data manager have the BitLocker passwords.
 
-## Microsoft SQL Server 
+## Microsoft SQL Server
 
 ARCN relies on three Microsoft SQL Servers for project and data management:
 
-1.  inp2300irmadb01\ntwk. We have a database, AKRO, used for project management.
+1.  inp2300irmadb01\ntwk. We have a database, AKRO, used for project management. This SQL Server is hosted in the NPS Denver Service Center. Management and backups are managed by NPS.
 
-2.  inpyugamsvm01\nuna and inpyugamsvm01\nuna\_dev. Nuna is our production server and nuna_dev is the development server. Databases are in various states of development on these SQL Servers for the Lagoons, Lakes, Moose, Muskox, Shallow Lakes, Terrestrial Vegetation and Soils, Terrestrial Landscape Patterns and Dynamics and Loons monitoring protocols.
+2.  inpyugamsvm01\nuna and inpyugamsvm01\nuna\_dev. Nuna is our production server and nuna_dev is the development server. Databases are in various states of development on these SQL Servers for the Lagoons, Lakes, Moose, Muskox, Shallow Lakes, Terrestrial Vegetation and Soils, Terrestrial Landscape Patterns and Dynamics and Loons monitoring protocols. Administration and backups are done by FAC and CAKN.
 
-3.  inpakrovmais. This SQL Server is hosted by the Alaska Region GIS team and ARCN uses the Animal_Movement database to manage GPS collar data for caribou, sheep, moose and muskox Vital Signs.
+3.  inpakrovmais. This SQL Server is hosted by the Alaska Region GIS team and ARCN uses the Animal_Movement database to manage GPS collar data for caribou, sheep, moose and muskox Vital Signs. Administration and backups are done by the AK Regional GIS team and IT staff.
 
 ## Integrated Resource Management Applications system
+
+IRMA is the public face of the ARCN. Each Vital Sign has a Project Reference to which products such as reports, journal articles and datasets are published. We also publish mission critical documents such as monitoring protocols, standard operating procedures, data quality standards and quality assurance plans in IRMA. Each Vital Sign Project Reference can be found by using the [ARCN Program Reference](https://irma.nps.gov/DataStore/Reference/Profile/2208369) as a starting point.
+
+# Data Management Systems By Vital Sign
